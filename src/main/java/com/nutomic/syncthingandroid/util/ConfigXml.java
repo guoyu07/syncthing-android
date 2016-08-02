@@ -16,6 +16,7 @@ import org.xml.sax.SAXException;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Locale;
 
@@ -94,6 +95,11 @@ public class ConfigXml {
         if (mConfig == null)
             throw new OpenConfigException();
 
+        // This should also be executed for existing installs. After some time, we can move the
+        // call to generateLoginInfo() into the isFirstStart block.
+        if (getGuiElement().getElementsByTagName("user").getLength() == 0) {
+            generateLoginInfo();
+        }
         if (isFirstStart) {
             changeDefaultFolder();
         }
@@ -114,6 +120,14 @@ public class ConfigXml {
 
     public String getApiKey() {
         return getGuiElement().getElementsByTagName("apikey").item(0).getTextContent();
+    }
+
+    public String getUserName() {
+        return getGuiElement().getElementsByTagName("user").item(0).getTextContent();
+    }
+
+    public String getPassword() {
+        return getGuiElement().getElementsByTagName("password").item(0).getTextContent();
     }
 
     /**
@@ -225,7 +239,7 @@ public class ConfigXml {
     /**
      * Change default folder id to camera and path to camera folder path.
      */
-    public void changeDefaultFolder() {
+    private void changeDefaultFolder() {
         Element folder = (Element) mConfig.getDocumentElement()
                 .getElementsByTagName("folder").item(0);
         String model = Build.MODEL
@@ -238,6 +252,26 @@ public class ConfigXml {
                 .getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM).getAbsolutePath());
         folder.setAttribute("type", "readonly");
         saveChanges();
+    }
+
+    private void generateLoginInfo() {
+        char[] chars =
+                "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz".toCharArray();
+        StringBuilder sb = new StringBuilder();
+        SecureRandom random = new SecureRandom();
+        for (int i = 0; i < 20; i++)
+            sb.append(chars[random.nextInt(chars.length)]);
+
+        String user = Build.MODEL.replaceAll("[^a-zA-Z0-9 ]", "");
+        Log.i(TAG, "Generated GUI username and password (username is " + user + ")");
+
+        Node userNode = mConfig.createElement("user");
+        getGuiElement().appendChild(userNode);
+        userNode.setTextContent(user);
+
+        Node passwordNode = mConfig.createElement("password");
+        getGuiElement().appendChild(passwordNode);
+        passwordNode.setTextContent(sb.toString());
     }
 
     /**

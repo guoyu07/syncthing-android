@@ -44,8 +44,8 @@ public class SettingsFragment extends PreferenceFragment
     private static final String DEVICE_NAME_KEY       = "deviceName";
     private static final String USAGE_REPORT_ACCEPTED = "urAccepted";
     private static final String ADDRESS               = "address";
-    private static final String GUI_USER              = "gui_user";
-    private static final String GUI_PASSWORD          = "gui_password";
+    private static final String USER                  = "user";
+    private static final String PASSWORD              = "password";
     private static final String EXPORT_CONFIG         = "export_config";
     private static final String IMPORT_CONFIG         = "import_config";
     private static final String STTRACE               = "sttrace";
@@ -96,6 +96,14 @@ public class SettingsFragment extends PreferenceFragment
             Preference address = mGuiScreen.findPreference(ADDRESS);
             address.setOnPreferenceChangeListener(this);
             applyPreference(address, api.getValue(RestApi.TYPE_GUI, ADDRESS));
+
+            Preference user = mGuiScreen.findPreference(USER);
+            user.setOnPreferenceChangeListener(this);
+            applyPreference(user, api.getValue(RestApi.TYPE_GUI, USER));
+
+            Preference password = mGuiScreen.findPreference(PASSWORD);
+            password.setOnPreferenceChangeListener(this);
+            applyPreference(password, api.getValue(RestApi.TYPE_GUI, PASSWORD));
         }
     }
 
@@ -113,7 +121,6 @@ public class SettingsFragment extends PreferenceFragment
             ((CheckBoxPreference) pref).setChecked(Boolean.parseBoolean(value));
         }
     }
-
 
     /**
      * Loads layout, sets version from Rest API.
@@ -140,8 +147,6 @@ public class SettingsFragment extends PreferenceFragment
         Preference appVersion = screen.findPreference(APP_VERSION_KEY);
         mOptionsScreen = (PreferenceScreen) screen.findPreference(SYNCTHING_OPTIONS_KEY);
         mGuiScreen = (PreferenceScreen) screen.findPreference(SYNCTHING_GUI_KEY);
-        final Preference user = screen.findPreference(GUI_USER);
-        Preference password = screen.findPreference(GUI_PASSWORD);
         Preference sttrace = findPreference(STTRACE);
 
         try {
@@ -160,16 +165,12 @@ public class SettingsFragment extends PreferenceFragment
         screen.findPreference(EXPORT_CONFIG).setOnPreferenceClickListener(this);
         screen.findPreference(IMPORT_CONFIG).setOnPreferenceClickListener(this);
         screen.findPreference(SYNCTHING_RESET).setOnPreferenceClickListener(this);
-        user.setOnPreferenceChangeListener(this);
-        password.setOnPreferenceChangeListener(this);
         sttrace.setOnPreferenceChangeListener(this);
 
         // Force summary update and wifi/charging preferences enable/disable.
         SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
         onPreferenceChange(mAlwaysRunInBackground, mAlwaysRunInBackground.isChecked());
         onPreferenceChange(mSyncOnlyOnSSIDs, sp.getStringSet("sync_only_wifi_ssids_set", new TreeSet<String>()));
-        user.setSummary(sp.getString("gui_user", ""));
-        sttrace.setSummary(sp.getString("sttrace", ""));
     }
 
     /**
@@ -226,7 +227,7 @@ public class SettingsFragment extends PreferenceFragment
     @Override
     public boolean onPreferenceChange(Preference preference, Object o) {
         // Convert new value to integer if input type is number.
-        if (preference instanceof EditTextPreference && !preference.getKey().equals(GUI_PASSWORD)) {
+        if (preference instanceof EditTextPreference && !preference.getKey().equals(PASSWORD)) {
             EditTextPreference pref = (EditTextPreference) preference;
             if ((pref.getEditText().getInputType() & InputType.TYPE_CLASS_NUMBER) > 0) {
                 try {
@@ -284,32 +285,24 @@ public class SettingsFragment extends PreferenceFragment
         } else if (preference.getKey().equals(ADDRESS)) {
             mSyncthingService.getApi().setValue(
                     RestApi.TYPE_GUI, preference.getKey(), o, false, getActivity());
+        } else if (preference.getKey().equals(USER)) {
+            String s = (String) o;
+            mSyncthingService.getApi().setValue(
+                    RestApi.TYPE_GUI, preference.getKey(), o, false, getActivity());
+        } else if (preference.getKey().equals(PASSWORD)) {
+            String s = (String) o;
+            mSyncthingService.getApi().setValue(
+                    RestApi.TYPE_GUI, preference.getKey(), o, false, getActivity());
         }
 
-
         // Avoid any code injection.
-        int error = 0;
         if (preference.getKey().equals(STTRACE)) {
             if (((String) o).matches("[a-z, ]*"))
                 requireRestart = true;
-            else
-                error = R.string.toast_invalid_sttrace;
-        } else if (preference.getKey().equals(GUI_USER)) {
-            String s = (String) o;
-            if (!s.contains(":") && !s.contains("'"))
-                requireRestart = true;
-            else
-                error = R.string.toast_invalid_username;
-        } else if (preference.getKey().equals(GUI_PASSWORD)) {
-            String s = (String) o;
-            if (!s.contains(":") && !s.contains("'"))
-                requireRestart = true;
-            else
-                error = R.string.toast_invalid_password;
-        }
-        if (error != 0) {
-            Toast.makeText(getActivity(), error, Toast.LENGTH_SHORT).show();
-            return false;
+            else {
+                Toast.makeText(getActivity(), R.string.toast_invalid_sttrace, Toast.LENGTH_SHORT).show();
+                return false;
+            }
         }
 
         if (requireRestart)
